@@ -6,6 +6,10 @@ Last Update: July/23/2021
 
 Keywords：CDH，Hadoop，Big Data Platform，Hyper-V，Virtual Machine
 
+Abstract：
+因想要学习大数据各种相关组件和技术，而自家有台台式机可以折腾，购买所需配置的云服务器又太贵，故准备自行搭建CDH集群。因有Win10专业版，因此尝鲜玩玩Hyper-V。整体思路如下：规划好整个集群的数量、配置、角色，准备好所有软件包；先配置一台虚拟机A，尽可能将所有公共的配置设置好，再依次复制出其余机器。
+文内全部使用经过验证的PowerShell和Shell脚本进行配置，注释丰富便于理解整体操作逻辑（和复制粘贴）。使用VMWare/VirtualBox/KVM等基本流程均相似。
+
 ## 0. 背景
 
 - 因想要学习大数据各种相关组件和技术，而自家有台台式机可以折腾，购买所需配置的云服务器又太贵，故准备自行搭建CDH集群。
@@ -38,6 +42,10 @@ Keywords：CDH，Hadoop，Big Data Platform，Hyper-V，Virtual Machine
   - 修改一行 (modify: from xxx to xxx)
   - 添加一行 (append: xxx)
   - 注释一行 (comment: # xxx)，也可以删除该行
+
+特别感谢参考文章：
+- [绿叶悠，CDH6.2安装教程（详细步骤）](https://www.jianshu.com/p/610cce9f9026)
+- [小KKKKKKKK，Centos7离线部署CDH6.3.2集群](https://www.jianshu.com/p/6f120a99cbae)
 
 ## 1. 集群规划
 
@@ -999,7 +1007,7 @@ vgdisplay vg-data
 
 启动后，各服务器占用宿主机的内存使用情况如下（因角色放置不同，数据量不同，运行时长不同，下面数据供参考）。 
 
-|            FQDN            | short name | Mem Used | Total Disk |
+|       FQDN / Contents      | short name | Mem Used | Total Disk |
 | -------------------------: | :--------: | -------: | ---------: |
 |  master01.cdh.lionxcat.com |     m01    |    9.2GB |     10.4GB |
 |  master02.cdh.lionxcat.com |     m02    |    5.9GB |     10.4GB |

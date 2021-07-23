@@ -2,7 +2,7 @@
 
 Version: v0.1
 
-July/23/2021
+Last Update: July/23/2021
 
 Keywords：CDH，Hadoop，Big Data Platform，Hyper-V，Virtual Machine
 
@@ -1034,4 +1034,4 @@ vgdisplay vg-data
 后面会将HDP的搭建也整理个文章出来，再往后有精力再尝试搭建Apache原生。
 
 如有勘误、改进意见或自己搭建过程中的疑问，欢迎联系[lionxcat](mailto:7345445@qq.com)或留言。
-转载请注明原文。
+转载请注明原文[https://github.com/lionxcat/articles-it/blob/main/cdh-setup-guide-using-hyperv-by-yourself.md](https://github.com/lionxcat/articles-it/blob/main/cdh-setup-guide-using-hyperv-by-yourself.md)。

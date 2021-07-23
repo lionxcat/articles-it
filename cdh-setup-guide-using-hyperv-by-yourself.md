@@ -7,7 +7,7 @@ Last Update: July/23/2021
 Keywords：CDH，Hadoop，Big Data Platform，Hyper-V，Virtual Machine
 
 Abstract：
-因想要学习大数据各种相关组件和技术，而自家有台台式机可以折腾，购买所需配置的云服务器又太贵，故准备自行搭建CDH集群。因有Win10专业版，因此尝鲜玩玩Hyper-V。整体思路如下：规划好整个集群的数量、配置、角色，准备好所有软件包；先配置一台虚拟机A，尽可能将所有公共的配置设置好，再依次复制出其余机器。
+因想要学习大数据各种相关组件和技术，而自家有台台式机可以折腾，购买所需配置的云服务器又太贵，故准备自行搭建CDH集群。因有Win10专业版，因此尝鲜玩玩Hyper-V。整体思路如下：规划好整个集群的数量、配置、角色，准备好所有软件包；先配置一台虚拟机A，尽可能将所有公共的配置设置好，再依次复制出其余虚拟机。
 文内全部使用经过验证的PowerShell和Shell脚本进行配置，注释丰富便于理解整体操作逻辑（和复制粘贴）。使用VMWare/VirtualBox/KVM等基本流程均相似。
 
 ## 0. 背景
@@ -21,7 +21,7 @@ Abstract：
 
 整体思路如下：
 - 规划好整个集群的数量、配置、角色，准备好所有软件包。
-- 因台式机单机资源有限，同时开启多台虚拟机比较费，故先配置一台虚拟机A，尽可能将所有公共的配置设置好，再复制出其余机器。
+- 因台式机单机资源有限，同时开启多台虚拟机比较费，故先配置一台虚拟机A，尽可能将所有公共的配置设置好，再复制出其余虚拟机。
 - 需要有一台虚拟机B，作为CM Server和CDH私有仓库服务器，用于安装其余虚拟机所用的所有服务。其余所有虚拟机C的设置在安装CDH前都是一样的。
 - 因此操作流程为：
   - 配置A
@@ -66,7 +66,7 @@ Abstract：
 其中"4c2g"代表官方建议4核CPU，2GB内存。因磁盘空间一般不是问题，故没有列出。
 星号*表示该角色没有计入实际搭建和操作中，只是规划在表格中。
 "Final Config"是依据实际最终搭建完成后的运行情况，倒推出的最低配置，仅供参考。
-*如果宿主机内存只有16~32GB，可以使用"10 Worker Hosts without High Availability"搭配，且将DataNode放在所以虚拟机上，三台虚拟机即可满足，但实用性可能不足，即无法快乐的跑Job。*
+*如果宿主机内存只有16~32GB，可以使用"10 Worker Hosts without High Availability"搭配，且将DataNode放在所有VM上，三台VM即可满足，但实用性可能不足，即无法快乐的跑Job。*
 
 | Service |       Role       |master01|master02|master03|utility01|gateway01|node001|node002|node003| Total |
 | :-----: | :--------------: | -----: | -----: | -----: | ------: | ------: | ----: | ----: | ----: | ----: |
@@ -108,7 +108,7 @@ Abstract：
 | 10.10.64.103 |   node003.cdh.lionxcat.com |    n003    |
 | 10.10.64.250 |   centos7.cdh.lionxcat.com |     *c7    |
 
-*c7是模板机，不是CDH集群中的成员，用于复制出其余所有虚拟机。*
+*c7是模板机，不是CDH集群中的成员，用于复制出其余所有VM。*
 
 ## 2. 宿主机环境准备
 
@@ -149,7 +149,7 @@ Restart-Computer
 New-VMSwitch -Name cdh-vmswitch -SwitchType Internal
 # 查询出刚创建的cdh-wmswitch的ifIndex为60，依据实际情况更改
 Get-NetAdapter
-# 设置cdh-wmswitch的IP地址
+# 设置cdh-wmswitch的IP地址，将上一步查出的InterfaceIndex带入参数
 New-NetIPAddress -IPAddress 10.10.64.1 -PrefixLength 24 -InterfaceIndex 60
 # 设置cdh-wmswitch使用NAT获得物理机的互联网访问，此操作只能使用命令行
 New-NetNat -Name cdh-vmnat -InternalIPInterfaceAddressPrefix 10.10.64.0/24
@@ -256,7 +256,7 @@ VMConnect localhost $VMName
 ```bash
 # 在c7中执行
 ifconfig
-vi /etc/sysconfig/network-scripts/ifcfg-eth0 # eth0是具体机器网口
+vi /etc/sysconfig/network-scripts/ifcfg-eth0 # eth0是具体VM网卡
 # modify: BOOTPROTO="static"
 # modify: ONBOOT="yes"
 # append: IPADDR=10.10.64.250 # 今后需要替换成各VM自己的IP地址
@@ -284,7 +284,7 @@ systemctl restart sshd
 
 ## 3. 通用VM的OS环境准备
 
-*以下内容在c7上执行，是所有机器都需要的基础配置。*
+*以下内容在c7上执行，是所有VM都需要的基础配置。*
 
 ### 3.1 关闭防火墙
 
@@ -483,7 +483,7 @@ VMConnect localhost $VMName
 
 ```bash
 # ut01上执行
-vi /etc/sysconfig/network-scripts/ifcfg-eth0 # eth0是具体机器网口
+vi /etc/sysconfig/network-scripts/ifcfg-eth0 # eth0是具VM网卡
 # append: IPADDR=10.10.64.51
 
 hostnamectl set-hostname utility01.cdh.lionxcat.com
@@ -500,8 +500,8 @@ ping c7
 
 ### 4.2 开启NTP时间同步服务
 
-可选：如果非生产环境，所以机器都与公网同步也可以，只不过今后需要关掉CM的烦人的警告。
-将ut01作为授时服务器，其余机器均与ut01同步时间。
+可选：如果非生产环境，所以VM都与公网同步也可以，只不过今后需要关掉CM的烦人的警告。
+将ut01作为授时服务器，其余VM均与ut01同步时间。
 
 *以下内容在ut01上操作，配置ut01成为授时服务器。*
 
@@ -556,6 +556,7 @@ ntpq -p
 - 安装HTTP服务
 
 ```bash
+# 以下操作在ut01上执行
 yum install -y httpd
 systemctl start httpd
 systemctl enable httpd
@@ -569,6 +570,7 @@ mkdir -p /var/www/html/cloudera-repos/cdh6
 - 将CM和CDH包拷贝到ut01上
 
 ```powershell
+# 以下操作在宿主机上执行
 # 拷贝CM包
 scp "D:\cm6.3.1-redhat7.tar.gz" root@ut01:/var/www/html/cloudera-repos/cm6
 # 拷贝CDH包
@@ -578,6 +580,7 @@ scp "D:\cdh6\*" root@ut01:/var/www/html/cloudera-repos/cdh6
 - 解压缩文件
 
 ```bash
+# 以下操作在ut01上执行
 tar xvfz cm6.3.1-redhat7.tar.gz -C /var/www/html/cloudera-repos/cm6 --strip-components=1
 # 设置目录权限
 chmod -R ugo+rX /var/www/html/cloudera-repos/cm6
@@ -841,7 +844,7 @@ rm -f /var/lib/cloudera-scm-agent/uuid
 # 删除所有快照以合并磁盘文件
 Remove-VMSnapshot c7
 Remove-VMSnapshot ut01
-# 因为c7本身就是CM-Agent所在机器的备份，因此只需要再备份ut01即可
+# 因为c7本身就是CM-Agent所在VM的备份，因此只需要再备份ut01即可
 $BasePath = 'D:\VirtualMachines\CDH-Cluster'
 New-Item "$BasePath\backup" -ItemType Directory
 Copy-Item "$BasePath\ut01\ut01.vhdx" "$BasePath\backup"
@@ -903,7 +906,7 @@ ForEach ($DestVM in $DestVMColl) {
 注意：
 - 建议一个一个手工启动VM并执行后续配置，以免宿主机内存不够用最后有些VM启动不起来。
 - Hyper-V会在VM启动时为其分配<MemoryStartupBytes>大小的内存，在VM运行3~4分钟后动态内存收缩，此时宿主机内存占用下降可再启新VM。
-- 如果最终还是无法启动所有机器，要么调小启动内存（可能导致今后有的组件内存不足无法启动），要么买内存条插上。
+- 如果最终还是无法启动所有VM，要么调小启动内存（可能导致今后有的组件内存不足无法启动），要么买内存条插上。
 - 到此步骤为止，8台VM运行时内存总和约不到17GB。
 - c7的作用就到此结束了，可以和ut01的备份VHD一起放置到其他地方备份。
 
@@ -914,7 +917,7 @@ ForEach ($DestVM in $DestVMColl) {
 启动并配置IP和Hostname。启动VM命令略。
 
 ```bash
-vi /etc/sysconfig/network-scripts/ifcfg-eth0 # eth0是具体机器网口
+vi /etc/sysconfig/network-scripts/ifcfg-eth0 # eth0是具体VM网卡
 # append: IPADDR=10.10.64.xxx
 
 hostnamectl set-hostname xxx.cdh.lionxcat.com
